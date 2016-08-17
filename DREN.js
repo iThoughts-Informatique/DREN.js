@@ -67,7 +67,24 @@ function renderOrJsonPage(page, req, res){
 		});
 	}
 }
+
+/**
+ * @namespace PageDiff
+ */
+/**
+ * @function pageDiff
+ */
 function pageDiff(pageBefore, pageAfter, callback){
+	
+	/**
+	 * @function arrayDiff
+	 * @description Returns an array that is the difference between the 2 arrays providen
+	 * @memberof PageDiff
+	 * @param {array} a1 First array
+	 * @param {array} a2 Second array
+	 * @return {array} Difference between both arrays
+	 * @inner
+	 */
 	function arrayDiff(a1, a2) {
 		var result = [];
 		for (var i = 0; i < a1.length; i++) {
@@ -82,6 +99,16 @@ function pageDiff(pageBefore, pageAfter, callback){
 		}
 		return result;
 	}
+	
+	/**
+	 * @function arraySubstract
+	 * @description Substract members of a2 from a1
+	 * @memberof PageDiff
+	 * @param {array} a1 First array
+	 * @param {array} a2 Second array
+	 * @return {array} Array where a2 is took off of a1
+	 * @inner
+	 */
 	function arraySubstract(a1, a2) {
 		var result = [];
 		for (var i = 0; i < a1.length; i++) {
@@ -91,6 +118,17 @@ function pageDiff(pageBefore, pageAfter, callback){
 		}
 		return result;
 	}
+	
+	/**
+	 * @function simplifyLevel
+	 * @description Called by "reduce" with an object as "this" scope. Unwrap all sub-members to a single level
+	 * @memberof PageDiff
+	 * @param {*} prev Previous value
+	 * @param {string} key Key used for this loop
+	 * @param {number} index numerical index of the key
+	 * @return {object} Single-level object with nested members names are joined with "." 
+	 * @inner
+	 */
 	function simplifyLevel(prev, key, index){
 		var value = this[key];
 		switch(value.constructor.name){

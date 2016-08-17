@@ -1,10 +1,32 @@
-const Tools = require('./Tools'),
-	  Template = function Template(filename, content, options){
+const Tools = require('./Tools');
 
-		  this.fileName = filename;
-		  this.options = options || {};
-		  this.content = content;
-	  }
+/**
+ * @typedef {object} Linker
+ * @description Used to handle references while parsing/jsoning Templates
+ */
+
+/**
+ * @class Template
+ * @description A Template is like a "partial" in other rendering engines. It can't be the top level markup, and thus, should not contain the <html>, <body> or <head> tags, which should be in the Page file
+ * @param {string} fileName The path to the Template ECT file
+ * @param {object} content Parameters given to the template for rendering
+ * @param {object} [options] Additionnal options
+ */
+const Template = function Template(filename, content, options){
+	this.fileName = filename;
+	this.options = options || {};
+	this.content = content;
+}
+
+/**
+ * @method fromJson
+ * @description Parse the given object to a Template instance. The object should have been generated using {@link Template#toJson}.
+ * @memberof Template
+ * @static
+ * @param {object} json The JSON to parse as Template
+ * @param {Linker} linker Used to keep references between templates
+ * @returns {Template} The parsed Template
+ */
 Template.fromJson = function fromJson(json, linker){
 	if(isNA(linker)){
 		linker = {};
@@ -50,9 +72,27 @@ Template.fromJson = function fromJson(json, linker){
 	}
 	return undefined;
 }
+
+/**
+ * @method testJson
+ * @description Check if given plain object seems to be a valid JSON of Template
+ * @memberof Template
+ * @static
+ * @param {object} json The JSON to test
+ * @returns {boolean} True if it seems ok, false otherwise
+ */
 Template.testJson = function(json){
 	return json.type && json.fileName && json.options && json.content && json.id
 }
+
+/**
+ * @method toJson
+ * @description Converts the Template in a simple JSON object
+ * @memberof Tempalte
+ * @instance
+ * @param {Linker} linker Used to keep references between templates
+ * @returns {Template} The parsed Template
+ */
 Template.prototype.toJson = function toJson(linker){
 	function nestedTemplatesToJson(object){
 		var newObj = {};
@@ -112,6 +152,19 @@ Template.prototype.toJson = function toJson(linker){
 		content: nestedTemplatesToJson(this.content)
 	}
 }
+
+/**
+ * @method render
+ * @description Render each components to generate the response
+ * @memberof Template
+ * @instance
+ * @param {Page} page Parent Page instance
+ * @param {string} prefix String used to mark the path to the template
+ * @param {Linker} linker Used to keep track of relations
+ * @param {FailableCallback} callback Function to call afterwards with the result
+ * @async
+ * @returns {undefined} Async
+ */
 Template.prototype.render = function render(page, prefix, linker, callback){
 	var self = this;
 

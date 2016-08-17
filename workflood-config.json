@@ -1,0 +1,156 @@
+{
+    "project": {
+        "parameters": {
+            "project_name": "DRENjs",
+            "author": "Gerkin",
+            "company": {
+                "start": "2015",
+                "name": "GerkinDevelopment"
+            },
+			"documentation": {
+				"path": "/mnt/mutualized/work/nodejs/DRENjs-doc/"
+			}
+        },
+        "commands": {
+            "documentate": {
+                "parameters": {
+                    "version": {
+                        "_type": "prompt"
+                    },
+                    "version_minor": {
+                        "_type": "regex_replace",
+                        "value": "${ version }",
+                        "search": "^(\\d+)\\.(\\d+).*",
+                        "replacement": "$1.$2"
+                    }
+                },
+                "command_group": true,
+                "actionGroup": {
+                    "mode": "parallel",
+                    "actions": [
+                        {
+                            "action": "jsdoc",
+                            "data": {
+                                "selection": {
+                                    "\\.(js)$": true,
+                                    "\\.min\\.(js)$": false
+                                },
+                                "private": true,
+                                "template": "default",
+                                "destinationPath": "${ documentation.path }${ version_minor }/"
+                            }
+                        }
+                    ]
+                }
+            },
+            "release": {
+                "parameters": {
+                    "version": {
+                        "_type": "prompt"
+                    },
+                    "versionMessage": {
+                        "_type": "prompt"
+                    }
+                },
+                "description": "Makes a release by pre-commiting on git, updating file versions, post-commit & push",
+                "command_group": true,
+                "actionGroup": {
+                    "mode": "serie",
+                    "actions": [
+                        {
+                            "action": "git",
+                            "data": {
+                                "actions": [
+                                    {
+                                        "action": "commit",
+                                        "data": {
+                                            "message": "Pre-process version ${ version }"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "action": "files-version",
+                            "data": {
+                                "selection": {
+                                    "\\.(js)$": true,
+                                    "\\.min\\.(js)$": false
+                                },
+                                "setDiffs": {
+                                    "/(@version\\s+)\\d+(\\.\\d+)*": "$1$ { version }"
+                                },
+                                "targetVersion": "${ version }",
+                                "companyName": "${ company.name }"
+                            }
+                        },
+                        {
+                            "command": "documentate",
+                            "data": {
+                                "version": "${ version }"
+                            }
+                        },
+                        {
+                            "command_group": true,
+                            "mode": "parallel",
+                            "actions": [
+                                {
+                                    "action": "git",
+                                    "data": {
+                                        "actions": [
+                                            {
+                                                "action": "commit",
+                                                "data": {
+                                                    "message": "${ versionMessage }"
+                                                }
+                                            },
+                                            {
+                                                "action": "tag",
+                                                "data": {
+                                                    "label": "v${ version }",
+                                                    "message": "${ versionMessage}"
+                                                }
+                                            },
+                                            {
+                                                "action": "push"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "action": "git",
+                                    "data": {
+                                        "path": "../DRENjs-doc",
+                                        "actions": [
+                                            {
+                                                "action": "commit",
+                                                "data": {
+                                                    "message": "${ versionMessage }"
+                                                }
+                                            },
+                                            {
+                                                "action": "tag",
+                                                "data": {
+                                                    "label": "v${ version }",
+                                                    "message": "${ versionMessage }"
+                                                }
+                                            },
+                                            {
+                                                "action": "push"
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "versions": {
+        },
+        "checksums": {
+        }
+    },
+    "dirty": true
+}
