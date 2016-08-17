@@ -7,9 +7,9 @@
                 "start": "2015",
                 "name": "GerkinDevelopment"
             },
-			"documentation": {
-				"path": "/mnt/mutualized/work/nodejs/DRENjs-doc/"
-			}
+            "documentation": {
+                "path": "/mnt/mutualized/work/nodejs/DRENjs-doc/"
+            }
         },
         "commands": {
             "documentate": {
@@ -147,9 +147,24 @@
                 }
             }
         },
-        "versions": {
-        },
+        "versions": {},
         "checksums": {
+            "./DREN.js": {
+                "sha1": "fcfdc3f73d99d149ca03b741a46ba9c8d37b267b",
+                "md5": "32324642c5eadd52f1bd1aa63fab710f"
+            },
+            "./DREN/Page.js": {
+                "md5": "2e04371c3c4ffa23d5f8557af14c03fc",
+                "sha1": "c7dd50b70ec9638214440b114a0c789c61b35baa"
+            },
+            "./DREN/Template.js": {
+                "sha1": "f2b1ab1e5b57789eda1edc7438f6143609bf4b55",
+                "md5": "b1ea16d260db8a5dd84ab88f155a08af"
+            },
+            "./DREN/Tools.js": {
+                "sha1": "1940dcbc618046d01f39f302ada2b3377cd97e47",
+                "md5": "f2463a0972bdad6fdbd22e974b906cab"
+            }
         }
     },
     "dirty": true

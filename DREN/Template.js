@@ -1,3 +1,14 @@
+/**
+ * @file Template class file
+ *
+ * @author Gerkin
+ * @copyright 2016 GerkinDevelopment
+ * @license https://raw.githubusercontent.com/iThoughts-Informatique/DREN.js/master/LICENSE GPL-3.0
+ * @package DRENjs
+ *
+ * @version 0.0.1
+ */
+
 const Tools = require('./Tools');
 
 /**
