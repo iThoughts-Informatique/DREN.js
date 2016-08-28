@@ -1,92 +1,245 @@
 /**
- * @file Main includer file
+ * @file Main file of DRENjs
  *
  * @author Gerkin
  * @copyright 2016 GerkinDevelopment
  * @license https://raw.githubusercontent.com/iThoughts-Informatique/DREN.js/master/LICENSE GPL-3.0
- * @package DRENjs
+ * @package dren.js
  *
  * @version 0.0.1
  */
 
-module.exports = {
-	render: function(){
-		switch(arguments.length){
-			case 3:{
-				renderOrJsonPage.apply(null, arguments);
-			} break;
-			case 4:{
-				renderOrJsonFile.apply(null, arguments);
-			} break;
-		}	
-	},
-	Page: require("./DREN/Page"),
-	Template: require("./DREN/Template"),
-}
+/* jshint esversion: 6 */
 
-function renderOrJsonFile(file, args, req, res){
-	var engine = sails.config.views.engine.fn;
-	engine("../"+file+".ect", args, function(err, bodyContent){
-		args.bodyContent = bodyContent;
-		if(err){
-			sails.log.error(err);
-			return res.serverError();
-		}
-		if(req.isSocket){
-			sails.log.silly("Responding to socket");
-			return res.json(args);
-		} else {
-			sails.log.silly("Responding to Http");
-			addConstant(args);
-			return res.view("layouts/main", args);
-		}
-	});
-}
-function renderOrJsonPage(page, req, res){
-	var err;
-	var timer = new Date().getTime();
-	if(req.isSocket){
-		sails.log.silly("Responding to socket");
-		if(isNA(req.session.previousPage)){
-			var response = {reload: true};
-			if(res.constructor.name === "Function"){
-				return res(null, response)
-			} else {
-				return res.json(response);
-			}
-		} else {
-			return pageDiff(Page.fromJson(req.session.previousPage), page, function(err, diff){
-				req.session.previousPage = page.toJson();
-				sails.log.silly("Rendered Diff in " + (new Date().getTime() - timer) + "ms");
-				if(res.constructor.name === "Function"){
-					return res(null, diff)
-				} else {
-					return res.json(diff);
-				}
-			});
-		}
+/**
+ * @namespace server
+ * @description Server-side functions & classes
+ */
+
+/**
+ * @typedef ClientSendRequest
+ * @description Object describing how to send a request to the server
+ * @property {string} file The script file to use. Must be absolute
+ * @property {string} fct The function to use as {@link client.DRENjs.sendRequest}
+ */
+
+const crypto = require("crypto"),
+	  path = require('path'),
+	  fs = require('fs-extra'),
+	  Tools = require('./DREN/Tools');
+
+/**
+ * @class DRENjs
+ * @memberof server
+ * @description Engine core, defining configuration of DRENjs
+ * @param {object} conf Object defining how this instance will behave
+ * @param {RenderFunction} conf.engine Function used to render a template
+ * @param {string} conf.assetsDir Path to the directory containing the assets
+ * @param {string} conf.assetsUrl Url to the directory containing the assets
+ * @param {boolean} [conf.unminified = false] Serve unminified DRENjs client resources. Set to true to debug
+ * @param {boolean} conf.mainClient Main client-side script (typically, the requirejs dependency handler)
+ * @param {object} conf.templates_scripts Maps the templates arborescence with their associed scripts
+ * @param {ClientSendRequest} [conf.clientSendRequest] TODO describe
+ * @param {object} [conf.clientSide] Client-side additionnal conf
+ * @param {boolean} [conf.clientSide.unminified = false] Same as conf.unminified. Takes predecence
+ * @param {boolean} conf.clientSide.main Same as conf.main. Takes predecence
+ * @param {object} conf.clientSide.templates_scripts Same as conf.templates_scripts. Takes predecence
+ * @param {boolean} [conf.clientSide.nofix = false] Do not replace client-side files even if changed
+ * @param {string[][]} [conf.clientSide.dependencies = [[]]] Url or array of urls to dependencies (for the clientSendRequest functions, for example)
+ * @param {function} [conf.errorMessage] Function used to generate the error message. It takes a single parameter: the error
+ * @param {server.DRENjs.ENVIRONMENTS} [conf.environment={@link server.DRENjs.ENVIRONMENTS:development}] Environment of the instance
+ */
+const DRENjs = function DRENjs(conf) {
+	const unminified = (!Tools.isNA(conf.clientSide) && conf.clientSide.unminified === true) || (conf.unminified === true),
+		  nofix = (!Tools.isNA(conf.clientSide) && conf.clientSide.nofix === true);
+
+	this.minified = !unminified;
+
+	if (typeof conf.engine !== 'function') {
+		throw new ReferenceError('Missing required function parameter "conf.engine"');
+	}
+	this.engine = conf.engine;
+
+	if (typeof conf.assetsDir !== "string") {
+		throw new ReferenceError('Missing required string parameter "conf.assetsDir"');
+	}
+	this.assetsDir = conf.assetsDir;
+
+	if (typeof conf.assetsUrl !== "string") {
+		throw new ReferenceError('Missing required string parameter "conf.assetsUrl"');
+	}
+	this.assetsUrl = conf.assetsUrl;
+
+	this.clientSide = {
+		initDeps: [
+			[
+				this.assetsUrl + '/ithoughts-toolbox' + (unminified ? '' : '.min') + '.js'
+			]
+		]
+	};
+	this.clientSide.main = this.assetsUrl + '/dren' + (unminified ? '' : '.min') + '.js'
+	/*
+	(!Tools.isNA(conf.clientSide) && conf.clientSide.main) || conf.mainClient
+	if (typeof this.clientSide.main !== "string") {
+		throw new ReferenceError('Missing required string parameter "conf.clientSide.main"');
+	}*/
+
+	this.clientSide.template_scripts = (!Tools.isNA(conf.clientSide) && conf.clientSide.template_scripts) || conf.template_scripts;
+	if (typeof this.clientSide.template_scripts !== "object") {
+		throw new ReferenceError('Missing required string parameter "conf.clientSide.template_scripts"');
+	}
+
+	if(conf.clientSide.dependencies){
+		this.clientSide.initDeps = this.clientSide.initDeps.concat(conf.clientSide.dependencies);
+		/*	if(conf.clientSide.dependencies.constructor == []){
+			this.clientSide.initDeps = this.clientSide.initDeps.concat(conf.clientSide.dependencies)
+		} else if (typeof conf.clientSide.initDeps == "string"){
+			this.clientSide.initDeps.push(conf.clientSide.dependencies)
+		}*/
+	}
+
+	installClientSideLib(conf.assetsDir, nofix, 'require' + (unminified ? '' : '.min') + '.js');
+	installClientSideLib(conf.assetsDir, nofix, 'dren' + (unminified ? '' : '.min') + '.js');
+	installClientSideLib(conf.assetsDir, nofix, 'ithoughts-toolbox' + (unminified ? '' : '.min') + '.js');
+	installClientSideLib(conf.assetsDir, nofix, 'dren' + (unminified ? '' : '.min') + '.css');
+
+	if(Tools.isNA(conf.clientSendRequest)){
+		installClientSideLib(conf.assetsDir, nofix, 'default-xhr' + (unminified ? '' : '.min') + '.js');
 	} else {
-		sails.log.silly("Responding to Http");
-		req.session.previousPage = page.toJson();
-		page.render(function(err, html){
-			sails.log.silly("Rendered Page in " + (new Date().getTime() - timer) + "ms");
-			if(res.constructor.name === "Function"){
-				return res(null, html)
+		if((!!conf.clientSendRequest.file) ^ (!!conf.clientSendRequest.fct)){
+			if(conf.clientSendRequest.file){
+				if(this.clientSide.initDeps.filter(function(elem){ // Inject script in deps
+					var index = elem.indexOf("clientSendRequest");
+					if(index != -1){
+						elem[index] = conf.clientSendRequest.file;
+						return true;
+					}
+					return false;
+				}).length == 0){
+					throw 'Could not find "clientSendRequest" in dependencies';
+				}
 			} else {
-				return res.send(200, html);
+				throw "Not implemented";
 			}
-		});
+		} else {
+			throw new TypeError("Malformed clientSendRequest configuration object");
+		}
+	}
+
+
+	//
+	this.Page.DRENjs = this;
+	if(typeof conf.errorMessage == "function"){
+		this.Page.errorMessage = conf.errorMessage;
+	}
+	this.Template.DRENjs = this;
+	if(typeof conf.errorMessage == "function"){
+		this.Template.errorMessage = conf.errorMessage;
+	}
+};
+DRENjs.prototype.diffRender = function diffRender(thisPage, previousPage, callback) {
+	return pageDiff(previousPage, thisPage, callback);
+};
+
+/**
+ * @constant {server.Page} Page
+ * @memberof server.DRENjs
+ * @description Exposition of the {@link server.Page Page constructor}, configured with this DRENjs instance
+ * @readonly
+ * @instance
+ */
+const Page = require('./DREN/Page');
+DRENjs.prototype.Page = Page;
+
+/**
+ * @constant {server.Template} Template
+ * @memberof server.DRENjs
+ * @description Exposition of the {@link server.Template Template constructor}, configured with this DRENjs instance
+ * @readonly
+ * @instance
+ */
+const Template = require('./DREN/Template');
+DRENjs.prototype.Template = Template;
+
+/**
+ * @constant {string} ENVIRONMENTS
+ * @memberof server.DRENjs
+ * @description Environments of DRENjs. Set to "Production" as soon as you won't change views to allow optimizations
+ * @enum
+ */
+DRENjs.ENVIRONMENTS = Object.freeze({
+	/**
+	 * @property {string} server.DRENjs.ENVIRONMENTS.development
+	 * @description Default environment if none specified
+	 */
+	development: 0,
+	/**
+	 * @property {string} server.DRENjs.ENVIRONMENTS.production
+	 * @description Production environment. Some improvments & optimizations will be done... Later
+	 */
+	production: 1
+});
+
+/**
+ * @function installClientSideLib
+ * @description Check if the file in the assets directory need to be reinstalled.
+ * @private
+ * @param {string} assetsDir Path to the directory of assets
+ * @param {boolean} nofix Set it to true if you don't want to rewrite changed lib files
+ * @param {string} filename Name of the file to check or write
+ * @param {string} [content] Content of the file to write
+ */
+function installClientSideLib(assetsDir, nofix, filename, content) {
+	var installed = false,
+		hashAssets,
+		hashLib;
+	const assetsFile = path.resolve(process.cwd(), assetsDir + '/' + filename),
+		  libFile = path.resolve(__dirname, 'lib/client/' + filename);
+	try {
+		hashAssets = md5file(assetsFile);
+		console.log('The MD5 sum of "' + filename + '" in assets is "' + hashAssets + '"');
+	} catch (e) {
+		console.log('"' + filename + '" is not installed in the assets folder');
+		installed = doInstall();
+	}
+	if (!installed) {
+		if(!nofix){
+			if(Tools.isNA(content)){
+				hashLib = md5file(libFile);
+				console.log('The MD5 sum of "' + filename + '" in lib is "' + hashLib + '"');
+			} else {
+				hashLib = md5string(content);
+				console.log('The MD5 sum of "' + filename + '" in lib AS STRING is "' + hashLib + '"');
+			}
+			if (hashAssets !== hashLib) {
+				console.log('Checksums mismatch, reinstall the client side lib');
+				installed = doInstall();
+			}
+		} else {
+			console.warn("Nofix mode for file "+filename);
+		}
+	}
+	function doInstall() {
+		try {
+			fs.copySync(libFile, assetsFile);
+			console.log('"' + libFile + '" successfully copied to "' + assetsFile + '"');
+			return true;
+		} catch (e) {
+			console.error('Could not copy "' + libFile + '" to "' + assetsFile + '"', e);
+			return false;
+		}
 	}
 }
 
 /**
  * @namespace PageDiff
  */
+
 /**
  * @function pageDiff
  */
-function pageDiff(pageBefore, pageAfter, callback){
-	
+function pageDiff(pageBefore, pageAfter, callback) {
+
 	/**
 	 * @function arrayDiff
 	 * @description Returns an array that is the difference between the 2 arrays providen
@@ -110,7 +263,7 @@ function pageDiff(pageBefore, pageAfter, callback){
 		}
 		return result;
 	}
-	
+
 	/**
 	 * @function arraySubstract
 	 * @description Substract members of a2 from a1
@@ -129,7 +282,7 @@ function pageDiff(pageBefore, pageAfter, callback){
 		}
 		return result;
 	}
-	
+
 	/**
 	 * @function simplifyLevel
 	 * @description Called by "reduce" with an object as "this" scope. Unwrap all sub-members to a single level
@@ -140,114 +293,120 @@ function pageDiff(pageBefore, pageAfter, callback){
 	 * @return {object} Single-level object with nested members names are joined with "." 
 	 * @inner
 	 */
-	function simplifyLevel(prev, key, index){
+	function simplifyLevel(prev, key, index) {
 		var value = this[key];
-		switch(value.constructor.name){
-			case "Template": {
+		switch (value.constructor.name) {
+			case 'Template': {
 				prev[key] = value;
-			} break;
-
-			case "Object": {
+			}
+				break;
+			case 'Object': {
 				var subDiff = Object.keys(value).reduce(simplifyLevel.bind(value), {});
-				for(var i in subDiff){
-					prev[key + "." + i] = subDiff[i];
+				for (var i in subDiff) {
+					prev[key + '.' + i] = subDiff[i];
 				}
-			} break;
+			}
+				break;
 		}
 		return prev;
 	}
-
-	if(pageBefore.fileName != pageAfter.fileName){
-		sails.log.silly("Page changed file");
+	if (pageBefore.fileName != pageAfter.fileName) {
+		sails.log.silly('Page changed file');
 		return pageAfter.render(callback);
 	} else {
-		var diff = {content:templateDiff(pageBefore.content, pageAfter.content)},
+		var diff = {
+			content: templateDiff(pageBefore.content, pageAfter.content)
+		},
 			monolevelDiff = Object.keys(diff).reduce(simplifyLevel.bind(diff), {});
-		if(diff){// check if diff contains something
-			sails.log.silly("Page have area changes");
+		if (diff) {
+			// check if diff contains something
+			sails.log.silly('Page have area changes');
 			var linker = {};
-			Async.mapValues(monolevelDiff, function(value, key, cb){
-				value.render(pageAfter, key, linker, cb);
-			}, function(err, content){
-				return callback(err, {content:content});
+			Async.mapValues(monolevelDiff, function (value, key, cb) {
+				value.render(key, linker, function(err, html){
+					cb(err, {
+						template_name: value.fileName,
+						html: html
+					});
+				});
+			}, function (err, content) {
+				return callback(err, { content: content });
 			});
-		} else{
-			sails.log.silly("Page have no area changes");
+		} else {
+			sails.log.silly('Page have no area changes');
 			callback(null, {});
 		}
 	}
-
-
-	function templateDiff(templateBefore, templateAfter){
-		if(templateBefore.fileName != templateAfter.fileName){
+	function templateDiff(templateBefore, templateAfter) {
+		if (templateBefore.fileName != templateAfter.fileName) {
 			return templateAfter;
-		} else if(templateAfter.options.forceReload === true){
+		} else if (templateAfter.options.forceReload === true) {
 			return templateAfter;
 		} else {
 			var templateContentDiff = objectDiff(templateBefore.content, templateAfter.content);
-			if(templateContentDiff === true){
+			if (templateContentDiff === true) {
 				return templateAfter;
 			} else {
 				return templateContentDiff;
 			}
 		}
 	}
-	function objectDiff(a,b){
-		if(typeof a != "object" || typeof b != "object"){
+	function objectDiff(a, b) {
+		if (typeof a != 'object' || typeof b != 'object') {
 			return true;
 		}
-
-		var keys = Object.keys(a).concat(Object.keys(b)).filter(function(item, pos, self){return self.indexOf(item)==pos;});
-		for(var i = 0, I = keys.length; i < I; i++){
-			var key = keys[i],
-				av = a[key],
-				bv = b[key];
-			if(typeof av !== typeof bv){
-				if(isNA(bv)){
+		var keys = Object.keys(a).concat(Object.keys(b)).filter(function (item, pos, self) {
+			return self.indexOf(item) == pos;
+		});
+		for (var i = 0, I = keys.length; i < I; i++) {
+			var key = keys[i], av = a[key], bv = b[key];
+			if (typeof av !== typeof bv) {
+				if (Tools.isNA(bv)) {
 					return true;
 				}
-				if(bv.constructor.name === "Template"){
+				if (bv.constructor.name === 'Template') {
 					return bv;
 				}
 				return true;
 			}
-			switch(b[key].constructor.name){
-				case "Template":{
-					var diff = templateDiff(av, bv);
-					if(diff === true){
+			var diff, container;
+			switch (b[key].constructor.name) {
+				case 'Template': {
+					diff = templateDiff(av, bv);
+					if (diff === true) {
 						return bv;
 					} else {
-						var container = {};
+						container = {};
 						container[key] = diff;
 						return container;
 					}
-				} break;
-
-				case "Object": {
-					var diff = objectDiff(av, bv);
-					if(diff === true){
+				}
+					break;
+				case 'Object': {
+					diff = objectDiff(av, bv);
+					if (diff === true) {
 						return b[key];
 					} else {
-						var container = {};
+						container = {};
 						container[key] = diff;
 						return container;
 					}
-				} break
-
-				case "Array": {
-					if(av.length != bv.length){
+				}
+					break;
+				case 'Array': {
+					if (av.length != bv.length) {
 						return true;
 					}
-					var diff = objectDiff(av, bv);
-					if(diff === true){
+					diff = objectDiff(av, bv);
+					if (diff === true) {
 						return bv;
 					} else {
-						var container = {};
+						container = {};
 						container[key] = diff;
 						return container;
 					}
-				} break
-
+				}
+					break;
 				default: {
 					return av === bv;
 				}
@@ -255,4 +414,20 @@ function pageDiff(pageBefore, pageAfter, callback){
 		}
 		return false;
 	}
+}
+
+module.exports = DRENjs;
+
+
+function md5string(string){
+	return crypto
+		.createHash('md5')
+		.update(string, 'utf8')
+		.digest('hex');
+}
+function md5file(file){
+	return crypto
+		.createHash('md5')
+		.update(fs.readFileSync(path.resolve(".", file), 'utf8'),'utf8')
+		.digest('hex');
 }

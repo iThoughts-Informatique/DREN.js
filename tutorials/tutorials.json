@@ -1,0 +1,10 @@
+{
+	"get_started": {
+		"title": "Get started",
+		"children": {
+			"create_first_page": {
+				"title": "Create your first page"
+			}
+		}
+	}
+}

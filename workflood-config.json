@@ -1,171 +1,216 @@
 {
-    "project": {
-        "parameters": {
-            "project_name": "DRENjs",
-            "author": "Gerkin",
-            "company": {
-                "start": "2015",
-                "name": "GerkinDevelopment"
-            },
-            "documentation": {
-                "path": "/mnt/mutualized/work/nodejs/DRENjs-doc/"
-            }
-        },
-        "commands": {
-            "documentate": {
-                "parameters": {
-                    "version": {
-                        "_type": "prompt"
-                    },
-                    "version_minor": {
-                        "_type": "regex_replace",
-                        "value": "${ version }",
-                        "search": "^(\\d+)\\.(\\d+).*",
-                        "replacement": "$1.$2"
-                    }
-                },
-                "command_group": true,
-                "actionGroup": {
-                    "mode": "parallel",
-                    "actions": [
-                        {
-                            "action": "jsdoc",
-                            "data": {
+	"project": {
+		"parameters": {
+			"project_name": "DRENjs",
+			"author": "Gerkin",
+			"company": {
+				"start": "2015",
+				"name": "GerkinDevelopment"
+			},
+			"documentation": {
+				"path": "/mnt/mutualized/work/nodejs/DRENjs-doc/"
+			}
+		},
+		"commands": {
+            "_default": {
+                "awake": true,
+                "command_group": false,
+                "eventListeners": [
+                    {
+                        "action": "minify",
+                        "data": {
+                            "from": "^(lib\\/client\\/.*)(\\.(?:cs|j)s)$",
+                            "to": "$1.min$2"
+                        },
+                        "events": {
+                            "onchange": {
                                 "selection": {
-                                    "\\.(js)$": true,
-                                    "\\.min\\.(js)$": false
+                                    "^\\.\\/(lib\\/client\\/.*)(\\.(?:cs|j)s)$": true,
+                                    "^\\.\\/(lib\\/client\\/.*)\\.min\\.(cs|j)s$": false
                                 },
-                                "private": true,
-                                "template": "default",
-                                "destinationPath": "${ documentation.path }${ version_minor }/"
+                                "warmup": false
                             }
                         }
-                    ]
-                }
-            },
-            "release": {
-                "parameters": {
-                    "version": {
-                        "_type": "prompt"
-                    },
-                    "versionMessage": {
-                        "_type": "prompt"
                     }
-                },
-                "description": "Makes a release by pre-commiting on git, updating file versions, post-commit & push",
-                "command_group": true,
-                "actionGroup": {
-                    "mode": "serie",
-                    "actions": [
-                        {
-                            "action": "git",
-                            "data": {
-                                "actions": [
-                                    {
-                                        "action": "commit",
-                                        "data": {
-                                            "message": "Pre-process version ${ version }"
-                                        }
-                                    }
-                                ]
-                            }
-                        },
-                        {
-                            "action": "files-version",
-                            "data": {
-                                "selection": {
-                                    "\\.(js)$": true,
-                                    "\\.min\\.(js)$": false
-                                },
-                                "setDiffs": {
-                                    "/(@version\\s+)\\d+(\\.\\d+)*": "$1$ { version }"
-                                },
-                                "targetVersion": "${ version }",
-                                "companyName": "${ company.name }"
-                            }
-                        },
-                        {
-                            "command": "documentate",
-                            "data": {
-                                "version": "${ version }"
-                            }
-                        },
-                        {
-                            "command_group": true,
-                            "mode": "parallel",
-                            "actions": [
-                                {
-                                    "action": "git",
-                                    "data": {
-                                        "actions": [
-                                            {
-                                                "action": "commit",
-                                                "data": {
-                                                    "message": "${ versionMessage }"
-                                                }
-                                            },
-                                            {
-                                                "action": "tag",
-                                                "data": {
-                                                    "label": "v${ version }",
-                                                    "message": "${ versionMessage}"
-                                                }
-                                            },
-                                            {
-                                                "action": "push"
-                                            }
-                                        ]
-                                    }
-                                },
-                                {
-                                    "action": "git",
-                                    "data": {
-                                        "path": "../DRENjs-doc",
-                                        "actions": [
-                                            {
-                                                "action": "commit",
-                                                "data": {
-                                                    "message": "${ versionMessage }"
-                                                }
-                                            },
-                                            {
-                                                "action": "tag",
-                                                "data": {
-                                                    "label": "v${ version }",
-                                                    "message": "${ versionMessage }"
-                                                }
-                                            },
-                                            {
-                                                "action": "push"
-                                            }
-                                        ]
-                                    }
-                                }
-                            ]
-                        }
-                    ]
-                }
-            }
-        },
-        "versions": {},
-        "checksums": {
-            "./DREN.js": {
-                "sha1": "fcfdc3f73d99d149ca03b741a46ba9c8d37b267b",
-                "md5": "32324642c5eadd52f1bd1aa63fab710f"
+                ]
             },
-            "./DREN/Page.js": {
-                "md5": "2e04371c3c4ffa23d5f8557af14c03fc",
-                "sha1": "c7dd50b70ec9638214440b114a0c789c61b35baa"
-            },
-            "./DREN/Template.js": {
-                "sha1": "f2b1ab1e5b57789eda1edc7438f6143609bf4b55",
-                "md5": "b1ea16d260db8a5dd84ab88f155a08af"
-            },
-            "./DREN/Tools.js": {
-                "sha1": "1940dcbc618046d01f39f302ada2b3377cd97e47",
-                "md5": "f2463a0972bdad6fdbd22e974b906cab"
-            }
-        }
-    },
-    "dirty": true
+			"documentate": {
+				"parameters": {
+					"version": {
+						"_type": "prompt"
+					},
+					"version_minor": {
+						"_type": "regex_replace",
+						"value": "${ version }",
+						"search": "^(\\d+)\\.(\\d+).*",
+						"replacement": "$1.$2"
+					}
+				},
+				"command_group": true,
+				"actionGroup": {
+					"mode": "parallel",
+					"actions": [
+						{
+							"action": "jsdoc",
+							"data": {
+								"selection": {
+									"\\.(js)$": true,
+									"^\\.\\/lib\\/client\\/require\\.js$": false,
+									"\\.min\\.(js)$": false
+								},
+								"private": true,
+								"template": "oblivion",
+								"destinationPath": "${ documentation.path }${ version_minor }/",
+								"additionalConfig": {
+									"templates": {
+										"systemName"		: "DRENjs",
+										"theme"				: "oblivion",
+										"syntaxTheme"		: "dark",
+										"footer"			: "DRENjs - Differential Rendering Engine",
+										"copyright"			: "Copyright iThoughts Informatique © 2016",
+										"navType"			: "vertical",
+										"linenums"			: true,
+										"collapseSymbols"	: false,
+										"inverseNav"		: true,
+										"analytics"			: {
+											"ua"				: "UA-61219056-4",
+											"domain"			: "auto"
+										}
+									},
+									"opts": {
+										"package": "/mnt/mutualized/work/nodejs/DRENjs/package.json",
+										"readme": "/mnt/mutualized/work/nodejs/DRENjs/README.md"
+									}
+								},
+                                "tutorials": "tutorials"
+							}
+						}
+					]
+				}
+			},
+			"release": {
+				"parameters": {
+					"version": {
+						"_type": "prompt"
+					},
+					"versionMessage": {
+						"_type": "prompt"
+					}
+				},
+				"description": "Makes a release by pre-commiting on git, updating file versions, post-commit & push",
+				"command_group": true,
+				"actionGroup": {
+					"mode": "serie",
+					"actions": [
+						{
+							"action": "git",
+							"data": {
+								"actions": [
+									{
+										"action": "commit",
+										"data": {
+											"message": "Pre-process version ${ version }"
+										}
+									}
+								]
+							}
+						},
+						{
+							"action": "files-version",
+							"data": {
+								"selection": {
+									"\\.(js)$": true,
+									"\\.min\\.(js)$": false
+								},
+								"setDiffs": {
+									"/(@version\\s+)\\d+(\\.\\d+)*": "$1$ { version }"
+								},
+								"targetVersion": "${ version }",
+								"companyName": "${ company.name }"
+							}
+						},
+						{
+							"command": "documentate",
+							"data": {
+								"version": "${ version }"
+							}
+						},
+						{
+							"command_group": true,
+							"mode": "parallel",
+							"actions": [
+								{
+									"action": "git",
+									"data": {
+										"actions": [
+											{
+												"action": "commit",
+												"data": {
+													"message": "${ versionMessage }"
+												}
+											},
+											{
+												"action": "tag",
+												"data": {
+													"label": "v${ version }",
+													"message": "${ versionMessage}"
+												}
+											},
+											{
+												"action": "push"
+											}
+										]
+									}
+								},
+								{
+									"action": "git",
+									"data": {
+										"path": "../doc",
+										"actions": [
+											{
+												"action": "commit",
+												"data": {
+													"message": "${ versionMessage }"
+												}
+											},
+											{
+												"action": "tag",
+												"data": {
+													"label": "v${ version }",
+													"message": "${ versionMessage }"
+												}
+											},
+											{
+												"action": "push"
+											}
+										]
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		},
+		"versions": {},
+		"checksums": {
+			"./DREN.js": {
+				"sha1": "fcfdc3f73d99d149ca03b741a46ba9c8d37b267b",
+				"md5": "32324642c5eadd52f1bd1aa63fab710f"
+			},
+			"./DREN/Page.js": {
+				"md5": "2e04371c3c4ffa23d5f8557af14c03fc",
+				"sha1": "c7dd50b70ec9638214440b114a0c789c61b35baa"
+			},
+			"./DREN/Template.js": {
+				"sha1": "f2b1ab1e5b57789eda1edc7438f6143609bf4b55",
+				"md5": "b1ea16d260db8a5dd84ab88f155a08af"
+			},
+			"./DREN/Tools.js": {
+				"sha1": "1940dcbc618046d01f39f302ada2b3377cd97e47",
+				"md5": "f2463a0972bdad6fdbd22e974b906cab"
+			}
+		}
+	},
+	"dirty": true
 }
