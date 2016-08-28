@@ -165,7 +165,7 @@
                                 {
                                     "action": "git",
                                     "data": {
-                                        "path": "../doc",
+                                        "path": "../DRENjs-doc",
                                         "actions": [
                                             {
                                                 "action": "commit",
