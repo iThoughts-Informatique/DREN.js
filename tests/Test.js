@@ -1,3 +1,14 @@
+/**
+ * @file Tests & benchmarks
+ *
+ * @author Gerkin
+ * @copyright 2016 GerkinDevelopment
+ * @license https://raw.githubusercontent.com/iThoughts-Informatique/DREN.js/master/LICENSE GPL-3.0
+ * @package dren.js
+ *
+ * @version 0.0.2
+ */
+
 module.exports = {
 	test: function(req, res){
 		var timer = new Date().getTime();

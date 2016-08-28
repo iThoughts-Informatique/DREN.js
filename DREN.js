@@ -6,7 +6,7 @@
  * @license https://raw.githubusercontent.com/iThoughts-Informatique/DREN.js/master/LICENSE GPL-3.0
  * @package dren.js
  *
- * @version 0.0.1
+ * @version 0.0.2
  */
 
 /* jshint esversion: 6 */
