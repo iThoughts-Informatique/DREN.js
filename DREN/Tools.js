@@ -29,6 +29,24 @@ const Tools = {
 	},
 	registerLink: function(href){
 		return 'href="'+href+'" drenjs'
+	},
+	insertTemplate: function(templateName){
+		const templateString = this[templateName],
+			  key = this.key + '.' + templateName;
+		if(Tools.isNA(templateString)){
+			return '<div data-content-area="' + key + '"></div>';
+		} else if(!templateString.match(/^<div data-content-area="/)){
+			return '<div data-content-area="' + key + '">'+templateString+'</div>';
+		} else {
+			return templateString;
+		}
+	},
+	log: {
+		silly: function(){},
+		verbose: function(){},
+		info: function(){},
+		warn: function(){},
+		error: function(){},
 	}
 };
 

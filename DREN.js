@@ -47,6 +47,7 @@ const crypto = require("crypto"),
  * @param {boolean} [conf.clientSide.nofix = false] Do not replace client-side files even if changed
  * @param {string[][]} [conf.clientSide.dependencies = [[]]] Url or array of urls to dependencies (for the clientSendRequest functions, for example)
  * @param {function} [conf.errorMessage] Function used to generate the error message. It takes a single parameter: the error
+ * @param {object} [conf.log] Dictionnary of log functions to use
  * @param {server.DRENjs.ENVIRONMENTS} [conf.environment={@link server.DRENjs.ENVIRONMENTS:development}] Environment of the instance
  */
 const DRENjs = function DRENjs(conf) {
@@ -54,6 +55,10 @@ const DRENjs = function DRENjs(conf) {
 		  nofix = (!Tools.isNA(conf.clientSide) && conf.clientSide.nofix === true);
 
 	this.minified = !unminified;
+
+	if (!Tools.isNA(conf.log)) {
+		Object.assign(Tools.log, conf.log);
+	}
 
 	if (typeof conf.engine !== 'function') {
 		throw new ReferenceError('Missing required function parameter "conf.engine"');
@@ -127,12 +132,32 @@ const DRENjs = function DRENjs(conf) {
 	}
 
 
-	//
-	this.Page.DRENjs = this;
+
+	/**
+	 * @constant {server.Page} Page
+	 * @memberof server.DRENjs
+	 * @description Exposition of the {@link server.Page Page constructor}, configured with this DRENjs instance
+	 * @readonly
+	 * @instance
+	 */
+	const Page = (new require('./DREN/Page'))(this); // Inject DRENjs instance into the Page
+	this.Page = Page;
+
+	/**
+	 * @constant {server.Template} Template
+	 * @memberof server.DRENjs
+	 * @description Exposition of the {@link server.Template Template constructor}, configured with this DRENjs instance
+	 * @readonly
+	 * @instance
+	 */
+	const Template = (new require('./DREN/Template'))(this); // Inject DRENjs instance into the Template
+	this.Template = Template;
+
+
 	if(typeof conf.errorMessage == "function"){
 		this.Page.errorMessage = conf.errorMessage;
 	}
-	this.Template.DRENjs = this;
+
 	if(typeof conf.errorMessage == "function"){
 		this.Template.errorMessage = conf.errorMessage;
 	}
@@ -142,24 +167,13 @@ DRENjs.prototype.diffRender = function diffRender(thisPage, previousPage, callba
 };
 
 /**
- * @constant {server.Page} Page
+ * @constant {server.Tools} Tools
  * @memberof server.DRENjs
- * @description Exposition of the {@link server.Page Page constructor}, configured with this DRENjs instance
+ * @description Exposition of the {@link server.Tools Tools util object}, configured with this DRENjs instance
  * @readonly
  * @instance
  */
-const Page = require('./DREN/Page');
-DRENjs.prototype.Page = Page;
-
-/**
- * @constant {server.Template} Template
- * @memberof server.DRENjs
- * @description Exposition of the {@link server.Template Template constructor}, configured with this DRENjs instance
- * @readonly
- * @instance
- */
-const Template = require('./DREN/Template');
-DRENjs.prototype.Template = Template;
+DRENjs.prototype.Tools = Tools;
 
 /**
  * @constant {string} ENVIRONMENTS
@@ -197,35 +211,35 @@ function installClientSideLib(assetsDir, nofix, filename, content) {
 		  libFile = path.resolve(__dirname, 'lib/client/' + filename);
 	try {
 		hashAssets = md5file(assetsFile);
-		console.log('The MD5 sum of "' + filename + '" in assets is "' + hashAssets + '"');
+		Tools.log.silly(`The MD5 sum of "${ filename }" in assets is "${ hashAssets }"`);
 	} catch (e) {
-		console.log('"' + filename + '" is not installed in the assets folder');
+		Tools.log.info(`"${ filename }" is not installed in the assets folder`);
 		installed = doInstall();
 	}
 	if (!installed) {
 		if(!nofix){
 			if(Tools.isNA(content)){
 				hashLib = md5file(libFile);
-				console.log('The MD5 sum of "' + filename + '" in lib is "' + hashLib + '"');
+				Tools.log.silly(`The MD5 sum of "${ filename }" in lib is "${ hashLib }"`);
 			} else {
 				hashLib = md5string(content);
-				console.log('The MD5 sum of "' + filename + '" in lib AS STRING is "' + hashLib + '"');
+				Tools.log.silly(`The MD5 sum of "${ filename }" in lib GIVEN AS STRING is "${ hashLib }"`);
 			}
 			if (hashAssets !== hashLib) {
-				console.log('Checksums mismatch, reinstall the client side lib');
+				Tools.log.warn('Checksums mismatch, reinstall the client side lib');
 				installed = doInstall();
 			}
 		} else {
-			console.warn("Nofix mode for file "+filename);
+			Tools.log.warn("Nofix mode for file "+filename);
 		}
 	}
 	function doInstall() {
 		try {
 			fs.copySync(libFile, assetsFile);
-			console.log('"' + libFile + '" successfully copied to "' + assetsFile + '"');
+			Tools.log.silly(`"${ libFile }" successfully copied to "${ assetsFile }"`);
 			return true;
 		} catch (e) {
-			console.error('Could not copy "' + libFile + '" to "' + assetsFile + '"', e);
+			Tools.log.error(`Could not copy "${ libFile }" to "${ assetsFile }": ${ e }`);
 			return false;
 		}
 	}
@@ -239,7 +253,6 @@ function installClientSideLib(assetsDir, nofix, filename, content) {
  * @function pageDiff
  */
 function pageDiff(pageBefore, pageAfter, callback) {
-
 	/**
 	 * @function arrayDiff
 	 * @description Returns an array that is the difference between the 2 arrays providen
@@ -295,6 +308,9 @@ function pageDiff(pageBefore, pageAfter, callback) {
 	 */
 	function simplifyLevel(prev, key, index) {
 		var value = this[key];
+		if(Tools.isNA(value)){
+			return prev;
+		}
 		switch (value.constructor.name) {
 			case 'Template': {
 				prev[key] = value;
@@ -310,33 +326,7 @@ function pageDiff(pageBefore, pageAfter, callback) {
 		}
 		return prev;
 	}
-	if (pageBefore.fileName != pageAfter.fileName) {
-		sails.log.silly('Page changed file');
-		return pageAfter.render(callback);
-	} else {
-		var diff = {
-			content: templateDiff(pageBefore.content, pageAfter.content)
-		},
-			monolevelDiff = Object.keys(diff).reduce(simplifyLevel.bind(diff), {});
-		if (diff) {
-			// check if diff contains something
-			sails.log.silly('Page have area changes');
-			var linker = {};
-			Async.mapValues(monolevelDiff, function (value, key, cb) {
-				value.render(key, linker, function(err, html){
-					cb(err, {
-						template_name: value.fileName,
-						html: html
-					});
-				});
-			}, function (err, content) {
-				return callback(err, { content: content });
-			});
-		} else {
-			sails.log.silly('Page have no area changes');
-			callback(null, {});
-		}
-	}
+
 	function templateDiff(templateBefore, templateAfter) {
 		if (templateBefore.fileName != templateAfter.fileName) {
 			return templateAfter;
@@ -355,9 +345,10 @@ function pageDiff(pageBefore, pageAfter, callback) {
 		if (typeof a != 'object' || typeof b != 'object') {
 			return true;
 		}
-		var keys = Object.keys(a).concat(Object.keys(b)).filter(function (item, pos, self) {
-			return self.indexOf(item) == pos;
-		});
+		var container = {},
+			keys = Object.keys(a).concat(Object.keys(b)).filter(function (item, pos, self) {
+				return self.indexOf(item) == pos;
+			})
 		for (var i = 0, I = keys.length; i < I; i++) {
 			var key = keys[i], av = a[key], bv = b[key];
 			if (typeof av !== typeof bv) {
@@ -369,27 +360,27 @@ function pageDiff(pageBefore, pageAfter, callback) {
 				}
 				return true;
 			}
-			var diff, container;
+			var diff;
 			switch (b[key].constructor.name) {
 				case 'Template': {
 					diff = templateDiff(av, bv);
 					if (diff === true) {
 						return bv;
 					} else {
-						container = {};
+						if(!container){
+							container = {};
+						}
 						container[key] = diff;
-						return container;
 					}
 				}
 					break;
 				case 'Object': {
 					diff = objectDiff(av, bv);
 					if (diff === true) {
-						return b[key];
-					} else {
-						container = {};
+						if(!container){
+							container = {};
+						}
 						container[key] = diff;
-						return container;
 					}
 				}
 					break;
@@ -399,20 +390,92 @@ function pageDiff(pageBefore, pageAfter, callback) {
 					}
 					diff = objectDiff(av, bv);
 					if (diff === true) {
-						return bv;
-					} else {
-						container = {};
+						if(!container){
+							container = {};
+						}
 						container[key] = diff;
-						return container;
 					}
 				}
 					break;
 				default: {
-					return av === bv;
+					if(av !== bv){
+						return true;
+					}
 				}
 			}
 		}
-		return false;
+		return container;
+	}
+
+	function pageNotMetaDiff(pageBefore, pageAfter){
+		const ignoredDiffs = ["metas"];
+
+		const attrsSum = Object.keys(pageBefore.infos).concat(Object.keys(pageAfter.infos));
+
+		var mustExit = false;
+		const attrs = arraySubstract(attrsSum, ignoredDiffs).filter(function onlyUnique(value, index, self) {
+			if(mustExit){
+				return false;
+			}
+			var diff = self.indexOf(value);
+			if(diff === -1){
+				mustExit = true;
+				return;
+			}
+			return diff === index;
+		});
+		if(mustExit){
+			return "notSameSize";
+		}
+
+		for(var i = 0, I = attrs.length; i < I; i++){
+			var attr = attrs[i];
+			let diff = objectDiff(pageBefore.infos[attr], pageAfter.infos[attr]);
+			if(diff && (typeof diff !== "object" || Object.keys(diff).length > 5)){
+				return {diff, attrBefore:pageBefore.infos[attr], attrAfter: pageAfter.infos[attr]};
+			}
+		}
+	}
+
+
+var swap;
+	if (pageBefore.fileName != pageAfter.fileName) {
+		Tools.log.verbose('Page changed file');
+		return pageAfter.render(callback);
+	} else if(swap = pageNotMetaDiff(pageBefore, pageAfter)){
+		Tools.log.verbose(`Page changed constants:${ JSON.stringify(swap) }`);
+		return callback(null, {reload: true});
+	} else {
+		sails.log.silly('Looking into templates');
+		var diff = templateDiff(pageBefore.content, pageAfter.content);
+		console.log(diff);
+		if(diff){
+			diff = {
+				content:diff
+			};
+		} else {
+			return callback(null, {});
+		}
+		var monolevelDiff = Object.keys(diff).reduce(simplifyLevel.bind(diff), {});
+		Tools.log.silly(`Diffs aligned on same level is: ${ JSON.stringify(monolevelDiff) }`);
+		if (monolevelDiff && Object.keys(monolevelDiff).length > 0) {
+			// check if diff contains something
+			Tools.log.verbose('Page have area changes');
+			var linker = {};
+			Async.mapValues(monolevelDiff, function (value, key, cb) {
+				value.render(key, linker, function(err, html){
+					cb(err, {
+						template_name: value.fileName,
+						html: html
+					});
+				});
+			}, function (err, content) {
+				return callback(err, { content: content });
+			});
+		} else {
+			Tools.log.verbose('Page have no area changes');
+			return callback(null, {});
+		}
 	}
 }
 
