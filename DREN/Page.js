@@ -33,7 +33,7 @@ module.exports = (DRENjs=>{
 		}
 		this.content = content;
 	};
-	
+
 	Page.DRENjs = DRENjs;
 
 	/**
@@ -138,6 +138,6 @@ module.exports = (DRENjs=>{
 			});
 		});
 	};
-	
+
 	return Page;
 });

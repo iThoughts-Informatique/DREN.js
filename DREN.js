@@ -103,10 +103,11 @@ const DRENjs = function DRENjs(conf) {
 		}*/
 	}
 
-	installClientSideLib(conf.assetsDir, nofix, 'require' + (unminified ? '' : '.min') + '.js');
-	installClientSideLib(conf.assetsDir, nofix, 'dren' + (unminified ? '' : '.min') + '.js');
-	installClientSideLib(conf.assetsDir, nofix, 'ithoughts-toolbox' + (unminified ? '' : '.min') + '.js');
-	installClientSideLib(conf.assetsDir, nofix, 'dren' + (unminified ? '' : '.min') + '.css');
+	const minPrefix = (unminified ? '' : '.min');
+	installClientSideLib(conf.assetsDir, nofix, `require${minPrefix}.js`);
+	installClientSideLib(conf.assetsDir, nofix, `dren${minPrefix}.js`);
+	installClientSideLib(conf.assetsDir, nofix, `ithoughts-toolbox${minPrefix}.js`);
+	installClientSideLib(conf.assetsDir, nofix, `dren${minPrefix}.css`);
 
 	if(Tools.isNA(conf.clientSendRequest)){
 		installClientSideLib(conf.assetsDir, nofix, 'default-xhr' + (unminified ? '' : '.min') + '.js');
@@ -303,7 +304,7 @@ function pageDiff(pageBefore, pageAfter, callback) {
 	 * @param {*} prev Previous value
 	 * @param {string} key Key used for this loop
 	 * @param {number} index numerical index of the key
-	 * @return {object} Single-level object with nested members names are joined with "." 
+	 * @return {object} Single-level object with nested members names are joined with "."
 	 * @inner
 	 */
 	function simplifyLevel(prev, key, index) {
