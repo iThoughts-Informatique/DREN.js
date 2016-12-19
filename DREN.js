@@ -362,6 +362,9 @@ function pageDiff(pageBefore, pageAfter, callback) {
 				return true;
 			}
 			var diff;
+			if(Tools.isNA(b[key])){
+				return true;
+			}
 			switch (b[key].constructor.name) {
 				case 'Template': {
 					diff = templateDiff(av, bv);
