@@ -26,7 +26,9 @@
 const crypto = require("crypto"),
 	  path = require('path'),
 	  fs = require('fs-extra'),
-	  Tools = require('./DREN/Tools');
+	  Tools = require('./DREN/Tools'),
+	  check = require('check-types'),
+	  _ = require('lodash');
 
 /**
  * @class DRENjs
@@ -34,8 +36,13 @@ const crypto = require("crypto"),
  * @description Engine core, defining configuration of DRENjs
  * @param {object} conf Object defining how this instance will behave
  * @param {RenderFunction} conf.engine Function used to render a template
- * @param {string} conf.assetsDir Path to the directory containing the assets
- * @param {string} conf.assetsUrl Url to the directory containing the assets
+ * @param {string} conf.ext Expected extension of the view file
+ * @param {string|object} conf.assetsDir Path to the directory containing the assets, or an object containing both "js" & "css" keys
+ * @param {string} conf.assetsDir.js Path to the directory containing the JS assets
+ * @param {string} conf.assetsDir.css Path to the directory containing the CSS assets
+ * @param {string|object} conf.assetsUrl Url to the directory containing the assets, or an object containing both "js" & "css" keys
+ * @param {string} conf.assetsUrl.js Url to the directory containing the JS assets
+ * @param {string} conf.assetsUrl.css Url to the directory containing the CSS assets
  * @param {boolean} [conf.unminified = false] Serve unminified DRENjs client resources. Set to true to debug
  * @param {boolean} conf.mainClient Main client-side script (typically, the requirejs dependency handler)
  * @param {object} conf.templates_scripts Maps the templates arborescence with their associed scripts
@@ -51,38 +58,73 @@ const crypto = require("crypto"),
  * @param {server.DRENjs.ENVIRONMENTS} [conf.environment={@link server.DRENjs.ENVIRONMENTS:development}] Environment of the instance
  */
 const DRENjs = function DRENjs(conf) {
-	const unminified = (!Tools.isNA(conf.clientSide) && conf.clientSide.unminified === true) || (conf.unminified === true),
-		  nofix = (!Tools.isNA(conf.clientSide) && conf.clientSide.nofix === true);
+	const unminified	= (check.assigned(conf.clientSide) && conf.clientSide.unminified === true) || (conf.unminified === true),
+		  nofix			= (check.assigned(conf.clientSide) && conf.clientSide.nofix === true);
 
 	this.minified = !unminified;
 
-	if (!Tools.isNA(conf.log)) {
+	if (check.assigned(conf.log)) {
 		Object.assign(Tools.log, conf.log);
 	}
+	console.log({minified: this.minified, logs: Tools.log});
 
-	if (typeof conf.engine !== 'function') {
+	if (!check.function(conf.engine)) {
 		throw new ReferenceError('Missing required function parameter "conf.engine"');
 	}
 	this.engine = conf.engine;
 
-	if (typeof conf.assetsDir !== "string") {
-		throw new ReferenceError('Missing required string parameter "conf.assetsDir"');
-	}
-	this.assetsDir = conf.assetsDir;
 
-	if (typeof conf.assetsUrl !== "string") {
-		throw new ReferenceError('Missing required string parameter "conf.assetsUrl"');
+	if (check.nonEmptyString(conf.ext)) {
+		if(conf.ext === "."){
+			throw new ReferenceError('Required string parameter "conf.ext" is invalid, it can\'t be "'+conf.ext+'"');
+		}
+		this.ext = conf.ext;
+		if(!this.ext.startsWith('.')){
+			Tools.log.warn("Missing trailing '.', this may produce unexpected results");
+		}
+	} else {
+		this.ext = '.ect';
 	}
-	this.assetsUrl = conf.assetsUrl;
+
+	/************\
+	|** ASSETS **|
+	\************/
+	const assetsModel = {
+		js: "",
+		css: ""
+	}
+	// Define assetsDir
+	if (check.nonEmptyString(conf.assetsDir)){
+		this.assetsDir = {
+			js: conf.assetsDir,
+			css: conf.assetsDir
+		};
+	} else if(check.like(conf.assetsDir, assetsModel)) {
+		this.assetsDir = conf.assetsDir;
+	} else {
+		throw new ReferenceError('Missing required string or object {js, css} parameter "conf.assetsDir"');
+	}
+
+	// Define assetsUrl
+	if (check.nonEmptyString(conf.assetsUrl)){
+		this.assetsUrl = {
+			js: conf.assetsUrl,
+			css: conf.assetsUrl
+		};
+	} else if(check.like(conf.assetsUrl, assetsModel)) {
+		this.assetsUrl = conf.assetsUrl;
+	} else {
+		throw new ReferenceError('Missing required string or object {js, css} parameter "conf.assetsUrl"');
+	}
 
 	this.clientSide = {
 		initDeps: [
 			[
-				this.assetsUrl + '/ithoughts-toolbox' + (unminified ? '' : '.min') + '.js'
+				this.assetsUrl.js + '/ithoughts-toolbox' + (unminified ? '' : '.min') + '.js'
 			]
 		]
 	};
-	this.clientSide.main = this.assetsUrl + '/dren' + (unminified ? '' : '.min') + '.js'
+	this.clientSide.main = this.assetsUrl.js + '/dren' + (unminified ? '' : '.min') + '.js'
 	/*
 	(!Tools.isNA(conf.clientSide) && conf.clientSide.main) || conf.mainClient
 	if (typeof this.clientSide.main !== "string") {
@@ -104,15 +146,15 @@ const DRENjs = function DRENjs(conf) {
 	}
 
 	const minPrefix = (unminified ? '' : '.min');
-	installClientSideLib(conf.assetsDir, nofix, `require${minPrefix}.js`);
-	installClientSideLib(conf.assetsDir, nofix, `dren${minPrefix}.js`);
-	installClientSideLib(conf.assetsDir, nofix, `ithoughts-toolbox${minPrefix}.js`);
-	installClientSideLib(conf.assetsDir, nofix, `dren${minPrefix}.css`);
+	installClientSideLib(conf.assetsDir.js, nofix, `require${minPrefix}.js`);
+	installClientSideLib(conf.assetsDir.js, nofix, `dren${minPrefix}.js`);
+	installClientSideLib(conf.assetsDir.js, nofix, `ithoughts-toolbox${minPrefix}.js`);
+	installClientSideLib(conf.assetsDir.css, nofix, `dren${minPrefix}.css`);
 
 	if(Tools.isNA(conf.clientSendRequest)){
-		installClientSideLib(conf.assetsDir, nofix, 'default-xhr' + (unminified ? '' : '.min') + '.js');
+		installClientSideLib(conf.assetsDir.js, nofix, 'default-xhr' + (unminified ? '' : '.min') + '.js');
 	} else {
-		if((!!conf.clientSendRequest.file) ^ (!!conf.clientSendRequest.fct)){
+		if((!!(conf.clientSendRequest.file) ^ (!!conf.clientSendRequest.fct))){
 			if(conf.clientSendRequest.file){
 				if(this.clientSide.initDeps.filter(function(elem){ // Inject script in deps
 					var index = elem.indexOf("clientSendRequest");
@@ -442,10 +484,11 @@ function pageDiff(pageBefore, pageAfter, callback) {
 	}
 
 
-var swap;
+	var swap;
+	Tools.log.verbose("Pages filename: ", {before:pageBefore.fileName, after:pageAfter.fileName});
 	if (pageBefore.fileName != pageAfter.fileName) {
 		Tools.log.verbose('Page changed file');
-		return pageAfter.render(callback);
+		return callback(null, {reload: true});
 	} else if(swap = pageNotMetaDiff(pageBefore, pageAfter)){
 		Tools.log.verbose(`Page changed constants:${ JSON.stringify(swap) }`);
 		return callback(null, {reload: true});

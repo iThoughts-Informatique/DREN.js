@@ -4,27 +4,29 @@
   "description": "Differential Rendering Engine for Node.js",
   "main": "DREN.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+	"test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
-    "type": "git",
-    "url": "https://github.com/iThoughts-Informatique/DREN.js"
+	"type": "git",
+	"url": "https://github.com/iThoughts-Informatique/DREN.js"
   },
   "keywords": [
-    "Rendering",
-    "engine",
-    "nodejs",
-    "ECT",
-    "one-page"
+	"Rendering",
+	"engine",
+	"nodejs",
+	"ECT",
+	"one-page"
   ],
   "author": "Gerkin",
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/iThoughts-Informatique/DREN.js/issues"
+	"url": "https://github.com/iThoughts-Informatique/DREN.js/issues"
   },
   "homepage": "https://github.com/iThoughts-Informatique/DREN.js#readme",
   "dependencies": {
-    "fs-extra": "^0.30.0",
-    "nodejs-md5": "^0.6.0"
+	"check-types": "^7.0.1",
+	"fs-extra": "^0.30.0",
+	"lodash": "^4.17.2",
+	"nodejs-md5": "^0.6.0"
   }
 }

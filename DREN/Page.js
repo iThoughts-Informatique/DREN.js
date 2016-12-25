@@ -10,20 +10,22 @@
  */
 
 /* jshint esversion: 6 */
+const check = require('check-types'),
+	  _ = require('lodash');
 
 module.exports = (DRENjs=>{
 	const Tools = DRENjs.Tools;
 
 	/**
- * @class Page
- * @memberof server
- * @description Top-level object representing a web-page. It usually contains the page title, metas, links to script & styles, etc etc
- * @param {string} title The title of the page
- * @param {string} fileName The path to the Page file
- * @param {object} infos Additionnal options
- * @param {boolean} [infos.reload=false] Force reload the page
- * @param {Template} content Template to use as content
- */
+	 * @class Page
+	 * @memberof server
+	 * @description Top-level object representing a web-page. It usually contains the page title, metas, links to script & styles, etc etc
+	 * @param {string} title The title of the page
+	 * @param {string} fileName The path to the Page file
+	 * @param {object} infos Additionnal options
+	 * @param {boolean} [infos.reload=false] Force reload the page
+	 * @param {Template} content Template to use as content
+	 */
 	const Page = function Page(title, fileName, infos, content) {
 		this.title = title;
 		this.fileName = fileName;
@@ -34,16 +36,32 @@ module.exports = (DRENjs=>{
 		this.content = content;
 	};
 
+	/**
+	 * @member DRENjs
+	 * @description Reference to the {@link DRENjs DRENjs instance}.
+	 * @memberof server.Page
+	 * @static
+	 * @type {server.DRENjs}
+	 */
 	Page.DRENjs = DRENjs;
 
 	/**
- * @method fromJson
- * @description Parse the given object to a Page instance. The object should have been generated using {@link Page#toJson}.
- * @memberof server.Page
- * @static
- * @param {object} json The JSON to parse as Page
- * @returns {Page} The parsed page
- */
+	 * @member cacheValidation
+	 * @description Validation items
+	 * @memberof server.Page
+	 * @instance
+	 * @type {object}
+	 */
+	Page.prototype.cacheValidation = {};
+
+	/**
+	 * @method fromJson
+	 * @description Parse the given object to a Page instance. The object should have been generated using {@link Page#toJson}.
+	 * @memberof server.Page
+	 * @static
+	 * @param {object} json The JSON to parse as Page
+	 * @returns {Page} The parsed page
+	 */
 	Page.fromJson = function fromJson(json) {
 		if (Tools.isNA(json)) {
 			throw new TypeError('Page.fromJson on undefined');
@@ -54,26 +72,27 @@ module.exports = (DRENjs=>{
 		if (json.type !== 'page') {
 			throw new TypeError('Page.fromJson first level object has unexpected \'type\' => ' + JSON.stringify(json.type));
 		}
-		return new Page(json.title, json.fileName, json.infos, Template.fromJson(json.content, {}));
+		const parsedPage = new Page(json.title, json.fileName, json.infos, Template.fromJson(json.content, {}));
+		parsedPage.cacheValidation = json.cacheValidation;
 	};
 
 	/**
- * @method errorMessage
- * @description Function used to generate the error message.
- * @memberof server.Page
- * @instance
- * @param {Error} err The error generated
- * @returns {string} The error string
- */
+	 * @method errorMessage
+	 * @description Function used to generate the error message.
+	 * @memberof server.Page
+	 * @instance
+	 * @param {Error} err The error generated
+	 * @returns {string} The error string
+	 */
 	Page.prototype.errorMessage = Tools.generateErrorMessage;
 
 	/**
- * @method toJson
- * @description Converts the Page instance and its components in plain JS object, allowing to store it as a string
- * @memberof server.Page
- * @instance
- * @returns {object} The JSON object allowing to parse this page
- */
+	 * @method toJson
+	 * @description Converts the Page instance and its components in plain JS object, allowing to store it as a string
+	 * @memberof server.Page
+	 * @instance
+	 * @returns {object} The JSON object allowing to parse this page
+	 */
 	Page.prototype.toJson = function toJson() {
 		var linker = {};
 		return {
@@ -81,60 +100,65 @@ module.exports = (DRENjs=>{
 			fileName: this.fileName,
 			title: this.title,
 			infos: this.infos,
-			content: Tools.isNA(this.content) ? {} : this.content.toJson(linker)
+			content: Tools.isNA(this.content) ? {} : this.content.toJson(linker),
+			cacheValidation: this.cacheValidation
 		};
 	};
 
 	/**
- * @method render
- * @description Render each components to generate the response
- * @memberof server.Page
- * @instance
- * @param {FailableCallback} callback Function to call afterwards with the result
- * @async
- * @returns {undefined} Async
- */
+	 * @method render
+	 * @description Render each components to generate the response
+	 * @memberof server.Page
+	 * @instance
+	 * @param {FailableCallback} callback Function to call afterwards with the result
+	 * @async
+	 * @returns {undefined} Async
+	 */
 	Page.prototype.render = function render(callback) {
-		var self = this;
-		this.content.render('content', {}, function (err, content) {
+		const thisPage = this;
+		thisPage.content._page = thisPage.infos;
+		thisPage.content.render('content', {}, function (err, content) {
 			if (err) {
 				sails.log.error('Error during render of page:', err);
 				content = content || Page.errorMessage(err);
 			}
+
+			// Data used to render the Page template
 			var data = {
-				content: '<div data-content-area="content" data-containing="'+self.content.fileName+'">' + content + '</div>',
-				title: self.title,
+				content: '<div data-content-area="content" data-containing="'+thisPage.content.fileName+'">' + content + '</div>',
+				title: thisPage.title,
 				scripts: {
 					head: '',
 					foot: ''
 				},
-				styles: '<link rel="stylesheet" type="text/css" href="'+Page.DRENjs.assetsUrl+'/dren'+(Page.DRENjs.minified ? '.min' : '')+'.css"/>',
+				styles: '<link rel="stylesheet" type="text/css" href="'+Page.DRENjs.assetsUrl.css+'/dren'+(Page.DRENjs.minified ? '.min' : '')+'.css"/>',
 				registerLink: Tools.registerLink
 			};
 
 			var headScripts = [
 				'<script id="initDeps">(window.DRENjs || (window.DRENjs = {})).initDeps = '+JSON.stringify(Page.DRENjs.clientSide.initDeps, null, 4)+';</script>',
-				'<script id="requirejs" data-main="'+Page.DRENjs.clientSide.main+'" src="'+Page.DRENjs.assetsUrl+'/require'+(Page.DRENjs.minified ? '.min' : '')+'.js" async></script>',
+				'<script id="requirejs" data-main="'+Page.DRENjs.clientSide.main+'" src="'+Page.DRENjs.assetsUrl.js+'/require'+(Page.DRENjs.minified ? '.min' : '')+'.js" async></script>',
 				'<script id="template_scripts">(window.DRENjs || (window.DRENjs = {})).template_scripts = '+JSON.stringify(Page.DRENjs.clientSide.template_scripts, null, 4)+';</script>',
 			];
 			data.scripts.head = headScripts.join("\n");
 
-			for (var i in self.infos) {
-				if ([
+			const skipProp = [
 					'title',
 					'filename',
 					'content',
 					'toJson',
 					'render'
-				].indexOf(i) === -1 && typeof self.infos[i] != 'function', 'infos') {
-					data[i] = self.infos[i];
+				];
+			for (var i in thisPage.infos) {
+				if (skipProp.indexOf(i) === -1) {
+					data[i] = thisPage.infos[i];
 				}
 			}
-			Page.DRENjs.engine(self.fileName + '.ect', data, function (err, out) {
+			Page.DRENjs.engine(thisPage.fileName + Page.DRENjs.ext, data, function (err, out) {
 				if (err) {
 					sails.log.error('Error during render of Page:', data, err);
 				}
-				callback(err, !err ? out : self.errorMessage(err));
+				callback(err, !err ? out : thisPage.errorMessage(err));
 			});
 		});
 	};

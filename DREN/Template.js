@@ -10,6 +10,8 @@
  */
 
 /* jshint esversion: 6 */
+const check = require('check-types'),
+	  _ = require('lodash');
 
 /**
  * @typedef {object} Linker
@@ -33,7 +35,7 @@ module.exports = (DRENjs=>{
 			this.content = content;
 		}
 	};
-	
+
 	Template.DRENjs = DRENjs;
 
 	/**
@@ -194,7 +196,7 @@ module.exports = (DRENjs=>{
  * @returns {undefined} Async
  */
 	Template.prototype.render = function render(prefix, linker, callback) {
-		var self = this;
+		const thisTemplate = this;
 
 		function nestedTemplatesToRenders(object, cbR) {
 			return Async.mapValues(object, function (value, key, cb) {
@@ -205,6 +207,7 @@ module.exports = (DRENjs=>{
 							if(value.placeholder){
 								return cb(null, '<div data-content-area="' + subk + '" data-containing="_"></div>');
 							} else {
+								value._page = thisTemplate._page;
 								return value.render(subk, linker, function (err, data) {
 									if(err){
 										console.error(err);
@@ -234,7 +237,7 @@ module.exports = (DRENjs=>{
 				if (err) {
 					sails.log.error('Error during composition content of Template:', out, err);
 				}
-				cbR(err, !err ? out : self.errorMessage(err));
+				cbR(err, !err ? out : thisTemplate.errorMessage(err));
 			});
 		}
 
@@ -242,15 +245,18 @@ module.exports = (DRENjs=>{
 			if (err) {
 				return callback(err, data);
 			}
-			data.registerLink = Tools.registerLink;
-			data.insertTemplate = Tools.insertTemplate;
-			data.key = prefix;
+			_.extend(data, {
+				registerLink: Tools.registerLink,
+				insertTemplate: Tools.insertTemplate,
+				key: prefix,
+				_page: thisTemplate._page
+			});
 			//sails.log.silly('Rendering ' + self.fileName + ' with ', data);
-			Template.DRENjs.engine(self.fileName + '.ect', data, function (err, out) {
+			Template.DRENjs.engine(thisTemplate.fileName + Template.DRENjs.ext, data, function (err, out) {
 				if (err) {
 					sails.log.error('Error during render of Template:', data, err);
 				}
-				callback(err, !err ? out : self.errorMessage(err));
+				callback(err, !err ? out : thisTemplate.errorMessage(err));
 			});
 		});
 	};
