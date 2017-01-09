@@ -58,7 +58,6 @@ const crypto = require("crypto"),
  * @param {server.DRENjs.ENVIRONMENTS} [conf.environment={@link server.DRENjs.ENVIRONMENTS:development}] Environment of the instance
  */
 const DRENjs = function DRENjs(conf) {
-	console.log(`Building with config`, conf);
 	const unminified	= (check.assigned(conf.clientSide) && conf.clientSide.unminified === true) || (conf.unminified === true),
 		  nofix			= (check.assigned(conf.clientSide) && conf.clientSide.nofix === true);
 
