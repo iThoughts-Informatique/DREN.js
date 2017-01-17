@@ -1,4 +1,32 @@
-/**
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: DREN.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: DREN.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
  * @file Main file of DRENjs
  *
  * @author Gerkin
@@ -13,7 +41,7 @@
 
 /**
  * @namespace server
- * @description Server-side functions & classes
+ * @description Server-side functions &amp; classes
  */
 
 /**
@@ -37,36 +65,39 @@ const crypto = require("crypto"),
  * @param {object} conf Object defining how this instance will behave
  * @param {RenderFunction} conf.engine Function used to render a template
  * @param {string} conf.ext Expected extension of the view file
- * @param {string|object} conf.assetsDir Path to the directory containing the assets, or an object containing both "js" & "css" keys
+ * @param {string|object} conf.assetsDir Path to the directory containing the assets, or an object containing both "js" &amp; "css" keys
  * @param {string} conf.assetsDir.js Path to the directory containing the JS assets
  * @param {string} conf.assetsDir.css Path to the directory containing the CSS assets
- * @param {string|object} conf.assetsUrl Url to the directory containing the assets, or an object containing both "js" & "css" keys
+ * @param {string|object} conf.assetsUrl Url to the directory containing the assets, or an object containing both "js" &amp; "css" keys
  * @param {string} conf.assetsUrl.js Url to the directory containing the JS assets
  * @param {string} conf.assetsUrl.css Url to the directory containing the CSS assets
+ * @param {object} [conf.templatesConfig]
+ * @param {string|object} [conf.templatesConfig.viewsRoot = './'] Path to views (relative to cwd)
+ * @param {string} conf.templatesConfig.viewsRoot.templates='./' Path to templates (relative to cwd)
+ * @param {string} conf.templatesConfig.viewsRoot.pages='./' Path to pages (relative to cwd)
+ * @param {boolean} [conf.templatesConfig.autoExplore = false] Whenever to auto detect all views in root folder. Defaults to false
+ * @param {boolean} [conf.templatesConfig.watch = false] Auto reload templateScripts file if provided and/or autoExplore if enabled
+ * @param {object|string} [conf.templatesConfig.templateScripts = {}] Object or filename containing the templatesConfig. Using a file allow you to update those settings at runtime. In both modes, the content must be a valid json object, with key representing the file path relative to root views directory, and the value is the string or array of strings representing scripts urls to load
  * @param {boolean} [conf.unminified = false] Serve unminified DRENjs client resources. Set to true to debug
- * @param {boolean} conf.mainClient Main client-side script (typically, the requirejs dependency handler)
- * @param {object} conf.templates_scripts Maps the templates arborescence with their associed scripts
  * @param {ClientSendRequest} [conf.clientSendRequest] TODO describe
  * @param {object} [conf.clientSide] Client-side additionnal conf
  * @param {boolean} [conf.clientSide.unminified = false] Same as conf.unminified. Takes predecence
  * @param {boolean} conf.clientSide.main Same as conf.main. Takes predecence
- * @param {object} conf.clientSide.templates_scripts Same as conf.templates_scripts. Takes predecence
  * @param {boolean} [conf.clientSide.nofix = false] Do not replace client-side files even if changed
  * @param {string[][]} [conf.clientSide.dependencies = [[]]] Url or array of urls to dependencies (for the clientSendRequest functions, for example)
  * @param {function} [conf.errorMessage] Function used to generate the error message. It takes a single parameter: the error
  * @param {object} [conf.log] Dictionnary of log functions to use
- * @param {server.DRENjs.ENVIRONMENTS} [conf.environment={@link server.DRENjs.ENVIRONMENTS:development}] Environment of the instance
+ * @param {server.DRENjs.ENVIRONMENTS} [conf.environment={@link server.DRENjs.ENVIRONMENTS.development development}] Environment of the instance
  */
 const DRENjs = function DRENjs(conf) {
-	const unminified	= (check.assigned(conf.clientSide) && conf.clientSide.unminified === true) || (conf.unminified === true),
-		  nofix			= (check.assigned(conf.clientSide) && conf.clientSide.nofix === true);
+	const unminified	= (check.assigned(conf.clientSide) &amp;&amp; conf.clientSide.unminified === true) || (conf.unminified === true),
+		  nofix			= (check.assigned(conf.clientSide) &amp;&amp; conf.clientSide.nofix === true);
 
 	this.minified = !unminified;
 
 	if (check.assigned(conf.log)) {
 		Object.assign(Tools.log, conf.log);
 	}
-	console.log({minified: this.minified, logs: Tools.log});
 
 	if (!check.function(conf.engine)) {
 		throw new ReferenceError('Missing required function parameter "conf.engine"');
@@ -116,6 +147,8 @@ const DRENjs = function DRENjs(conf) {
 	} else {
 		throw new ReferenceError('Missing required string or object {js, css} parameter "conf.assetsUrl"');
 	}
+/*
+	if (check.)*/
 
 	this.clientSide = {
 		initDeps: [
@@ -126,12 +159,12 @@ const DRENjs = function DRENjs(conf) {
 	};
 	this.clientSide.main = this.assetsUrl.js + '/dren' + (unminified ? '' : '.min') + '.js'
 	/*
-	(!Tools.isNA(conf.clientSide) && conf.clientSide.main) || conf.mainClient
+	(!Tools.isNA(conf.clientSide) &amp;&amp; conf.clientSide.main) || conf.mainClient
 	if (typeof this.clientSide.main !== "string") {
 		throw new ReferenceError('Missing required string parameter "conf.clientSide.main"');
 	}*/
 
-	this.clientSide.template_scripts = (!Tools.isNA(conf.clientSide) && conf.clientSide.template_scripts) || conf.template_scripts;
+	this.clientSide.template_scripts = (!Tools.isNA(conf.clientSide) &amp;&amp; conf.clientSide.template_scripts) || conf.template_scripts;
 	if (typeof this.clientSide.template_scripts !== "object") {
 		throw new ReferenceError('Missing required string parameter "conf.clientSide.template_scripts"');
 	}
@@ -232,7 +265,7 @@ DRENjs.ENVIRONMENTS = Object.freeze({
 	development: 0,
 	/**
 	 * @property {string} server.DRENjs.ENVIRONMENTS.production
-	 * @description Production environment. Some improvments & optimizations will be done... Later
+	 * @description Production environment. Some improvments &amp; optimizations will be done... Later
 	 */
 	production: 1
 });
@@ -307,12 +340,12 @@ function pageDiff(pageBefore, pageAfter, callback) {
 	 */
 	function arrayDiff(a1, a2) {
 		var result = [];
-		for (var i = 0; i < a1.length; i++) {
+		for (var i = 0; i &lt; a1.length; i++) {
 			if (a2.indexOf(a1[i]) === -1) {
 				result.push(a1[i]);
 			}
 		}
-		for (i = 0; i < a2.length; i++) {
+		for (i = 0; i &lt; a2.length; i++) {
 			if (a1.indexOf(a2[i]) === -1) {
 				result.push(a2[i]);
 			}
@@ -331,7 +364,7 @@ function pageDiff(pageBefore, pageAfter, callback) {
 	 */
 	function arraySubstract(a1, a2) {
 		var result = [];
-		for (var i = 0; i < a1.length; i++) {
+		for (var i = 0; i &lt; a1.length; i++) {
 			if (a2.indexOf(a1[i]) === -1) {
 				result.push(a1[i]);
 			}
@@ -392,7 +425,7 @@ function pageDiff(pageBefore, pageAfter, callback) {
 			keys = Object.keys(a).concat(Object.keys(b)).filter(function (item, pos, self) {
 				return self.indexOf(item) == pos;
 			})
-		for (var i = 0, I = keys.length; i < I; i++) {
+		for (var i = 0, I = keys.length; i &lt; I; i++) {
 			var key = keys[i], av = a[key], bv = b[key];
 			if (typeof av !== typeof bv) {
 				if (Tools.isNA(bv)) {
@@ -474,10 +507,10 @@ function pageDiff(pageBefore, pageAfter, callback) {
 			return "notSameSize";
 		}
 
-		for(var i = 0, I = attrs.length; i < I; i++){
+		for(var i = 0, I = attrs.length; i &lt; I; i++){
 			var attr = attrs[i];
 			let diff = objectDiff(pageBefore.infos[attr], pageAfter.infos[attr]);
-			if(diff && (typeof diff !== "object" || Object.keys(diff).length > 5)){
+			if(diff &amp;&amp; (typeof diff !== "object" || Object.keys(diff).length > 5)){
 				return {diff, attrBefore:pageBefore.infos[attr], attrAfter: pageAfter.infos[attr]};
 			}
 		}
@@ -505,7 +538,7 @@ function pageDiff(pageBefore, pageAfter, callback) {
 		}
 		var monolevelDiff = Object.keys(diff).reduce(simplifyLevel.bind(diff), {});
 		Tools.log.silly(`Diffs aligned on same level is: ${ JSON.stringify(monolevelDiff) }`);
-		if (monolevelDiff && Object.keys(monolevelDiff).length > 0) {
+		if (monolevelDiff &amp;&amp; Object.keys(monolevelDiff).length > 0) {
 			// check if diff contains something
 			Tools.log.verbose('Page have area changes');
 			var linker = {};
@@ -541,3 +574,26 @@ function md5file(file){
 		.update(fs.readFileSync(path.resolve(".", file), 'utf8'),'utf8')
 		.digest('hex');
 }
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="server.DRENjs.html">DRENjs</a></li><li><a href="server.Page.html">Page</a></li><li><a href="server.Template.html">Template</a></li></ul><h3>Namespaces</h3><ul><li><a href="client.html">client</a></li><li><a href="client.DRENjs.html">DRENjs</a></li><li><a href="client.iThoughts_Toolbox.html">iThoughts_Toolbox</a></li><li><a href="Default-XHR.html">Default-XHR</a></li><li><a href="PageDiff.html">PageDiff</a></li><li><a href="server.html">server</a></li></ul><h3>Global</h3><ul><li><a href="global.html#development">development</a></li><li><a href="global.html#pageDiff">pageDiff</a></li><li><a href="global.html#production">production</a></li><li><a href="global.html#requirejs">requirejs</a></li><li><a href="global.html#toUrl">toUrl</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Wed Jan 11 2017 22:25:33 GMT+0100 (CET)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
