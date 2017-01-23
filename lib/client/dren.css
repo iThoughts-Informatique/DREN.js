@@ -5,3 +5,7 @@
 	flex-direction: inherit;
 	flex: inherit;
 }
+[data-containing]{
+	width: 100%;
+	height: 100%;
+}
